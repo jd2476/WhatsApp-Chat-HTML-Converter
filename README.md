@@ -36,6 +36,9 @@ Versioned Output: The script generates HTML files with incremental version numbe
   - Paths should follow the format of the operating system (e.g., backslashes \ on Windows, forward slashes / on Unix-like systems).
   - The generated HTML file is best viewed in modern web browsers that support HTML5.
 
+## To-Do
+  - Add the ability to select messages and media and create a "summary" html
+
 ## Disclaimer
   - This script is intended for personal use and should be used responsibly and ethically.
   - Ensure that you have the right to convert and view the chat history, respecting the privacy and consent of all parties involved in the chat.
