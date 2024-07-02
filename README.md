@@ -11,20 +11,23 @@ Versioned Output: The script generates HTML files with incremental version numbe
 
 1. Prepare Chat and Media Files:
   - Export your WhatsApp chat along with media files. This will typically generate a folder containing a _chat.txt file and various media files.
+  - This program correctly detects sender(self) based on provided folder name(automatically) or parent folder name(which has to be named as the name of the user who exported chats) in case of both one-to-one and group chats respectively.
+  - So the ideal folder structure would be to place the script in a directory right outside your exported folder containing chat(txt) and media files.
+    ie    <br />
+    BOB(Parent Folder)<br />
+    |__ WhatsApp Chat - Alice<br />
+    |__ WhatsApp Chat - AB Group<br />
+    |__ script.py<br />
 
 2. Run the Script:
-  - Place the script in a directory separate from your chat and media files.
-  - Run the script. When prompted, enter the path to the folder containing your exported WhatsApp chat and media files.
+  - cd to BOB(Parent Folder)
+  - Run as `python3 ./whatsappChatToHTML.py` for Android, or `python3 ./whatsappChatToHTML_iOS.py` for iOS exported chat.
+  - Enter folder name `WhatsApp Chat - Alice` or `WhatsApp Chat - AB Group` when prompted
+  - Absolute or relative folder paths are untested
 
 3. View and Interact with HTML:
   - The script will generate an HTML file named after the folder containing the chat log, appended with a version number (e.g., ChatFolder_v0.html).
   - Open this HTML file in a web browser to view the formatted chat.
-  - Use checkboxes next to each message to select messages.
-  - Click the “Create Summary” button to open a new HTML document with only the selected messages.
-
-4. Summary HTML:
-  - The summary HTML is displayed in a new browser window or tab.
-  - This document can be saved manually from the browser for record-keeping or sharing.
 
 ## Requirements
   - Python environment (Python 3.x recommended).
