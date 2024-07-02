@@ -3,24 +3,20 @@ import html
 import glob
 from datetime import datetime
 
-def process_line(line, last_sender):
-    line = line.strip().replace('\u200e', '')  # Strip whitespace and remove Left-to-Right Mark
-    
-    if line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in line and ': ' in line:
+def process_message(message_lines, last_sender):
+    first_line = message_lines[0].strip().replace('\u200e', '')
+    rest_of_message = "\n".join(message_lines[1:]).strip()
+
+    if first_line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in first_line and ': ' in first_line:
         try:
-            timestamp_str, content = line.split(' - ', 1)
+            timestamp_str, content = first_line.split(' - ', 1)
             timestamp = datetime.strptime(timestamp_str, '%m/%d/%y, %H:%M')
             sender, message = content.split(': ', 1)
-            
-            # Check if this is a continuation of the previous message from the same sender
-            if 'last_message' in locals() and last_sender == sender:
-                message = f"{message}\n{last_message}"
+            message = f"{message}\n{rest_of_message}" if rest_of_message else message
         except ValueError:
-            timestamp, timestamp_str, sender, message = None, '', last_sender, line
+            timestamp, timestamp_str, sender, message = None, '', last_sender, first_line + "\n" + rest_of_message if rest_of_message else first_line
     else:
-        timestamp, timestamp_str, sender, message = None, '', last_sender, line
-
-    last_message = message  # Store the current message to check against the next line
+        timestamp, timestamp_str, sender, message = None, '', last_sender, first_line + "\n" + rest_of_message if rest_of_message else first_line
 
     return timestamp, sender.strip(), message.strip(), timestamp_str
 
@@ -57,7 +53,6 @@ def get_next_version_number(folder_name):
 
 def get_message_start_lines(lines):
     start_lines = []
-    last_sender = 'Unknown'
     
     for i, line in enumerate(lines):
         line = line.strip().replace('\u200e', '')
@@ -123,12 +118,11 @@ function createSummary() {
 
     for i in range(len(start_lines) - 1):
         message_lines = lines[start_lines[i]:start_lines[i+1]]
-        message_content = "\n".join(message_lines)
         
-        timestamp, sender, message, timestamp_str = process_line(message_lines[0], last_sender)
+        timestamp, sender, message, timestamp_str = process_message(message_lines, last_sender)
         
         if timestamp and sender:
-            message = create_media_embed(message_content, subfolder)
+            message = create_media_embed(message, subfolder)
             message_id += 1
 
             if timestamp and (last_date is None or timestamp.date() != last_date):
