@@ -32,7 +32,11 @@ def is_video(file_name):
 def is_pdf(file_name):
     return file_name.lower().endswith('.pdf')
 
-def create_media_embed(message, subfolder):
+def create_media_embed(message, subfolder, senderclass):
+    if message.lower() == 'null':
+        # Determine call icon based on senderclass
+        call_icon = '📞 Incoming call' if senderclass == 'other' else '📞 Outgoing call'
+        return f'<div class="call-icon">{call_icon}</div>'
     if '(file attached)' in message:
         file_name = message.split(' (file attached)')[0]
         file_path = html.escape(os.path.join(subfolder, file_name))
@@ -134,18 +138,22 @@ function createSummary() {
         timestamp, sender, message, timestamp_str = process_message(message_lines, last_sender)
         
         if timestamp and sender:
-            message = create_media_embed(message, subfolder)
-            message_id += 1
-
-            if timestamp and (last_date is None or timestamp.date() != last_date):
-                html_content += f'<div class="date">{timestamp.strftime("%d %B %Y")}</div>'
-                last_date = timestamp.date()
 
             # Determine senderclass based on folder naming conditions
             # If not a group chat:
             senderclass = 'other' if sender in folder_name else 'me'
             # else if group chat: would be more complicated
             # senderclass = 'other' if sender in folder_name else ('me' if parent_folder_name in sender or sender in parent_folder_name else 'other')
+
+
+            message = create_media_embed(message, subfolder, senderclass)
+            message_id += 1
+
+            if timestamp and (last_date is None or timestamp.date() != last_date):
+                html_content += f'<div class="date">{timestamp.strftime("%d %B %Y")}</div>'
+                last_date = timestamp.date()
+
+            
             
             alignment_class = 'right' if senderclass == 'me' else 'left'
             html_content += f'''
