@@ -48,6 +48,8 @@ def create_media_embed(message, subfolder):
     <p>Unable to display PDF file. <a href="{file_path}">Download</a> instead.</p>
 </object>
 '''
+        else:
+            return f'<a href="{file_path}">{html.escape(file_name)}</a> (file attached)'
     return html.escape(message)
 
 def get_next_version_number(folder_name):
