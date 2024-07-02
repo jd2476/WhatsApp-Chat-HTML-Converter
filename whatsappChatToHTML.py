@@ -24,22 +24,6 @@ def process_line(line, last_sender):
 
     return timestamp, sender.strip(), message.strip(), timestamp_str
 
-# def process_line(line, last_sender):
-#     line = line.strip().replace('\u200e', '')  # Strip whitespace and remove Left-to-Right Mark
-    
-#     # Check if line starts with a date format, followed by ' - ' and ': '
-#     if line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in line and ': ' in line:
-#         try:
-#             timestamp_str, content = line.split(' - ', 1)
-#             timestamp = datetime.strptime(timestamp_str, '%m/%d/%y, %H:%M')
-#             sender, message = content.split(': ', 1)
-#         except ValueError:
-#             timestamp, timestamp_str, sender, message = None, '', last_sender, line
-#     else:
-#         timestamp, timestamp_str, sender, message = None, '', last_sender, line
-
-#     return timestamp, sender.strip(), message.strip(), timestamp_str
-
 def is_image(file_name):
     return file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))
 
@@ -71,6 +55,17 @@ def get_next_version_number(folder_name):
             max_version = version_number
     return max_version + 1
 
+def get_message_start_lines(lines):
+    start_lines = []
+    last_sender = 'Unknown'
+    
+    for i, line in enumerate(lines):
+        line = line.strip().replace('\u200e', '')
+        if line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in line and ': ' in line:
+            start_lines.append(i)
+            
+    return start_lines
+
 def main():
     subfolder = input("Enter the path to the subfolder containing the chat and media files: ").strip()
     folder_name = os.path.basename(os.path.normpath(subfolder))
@@ -81,6 +76,9 @@ def main():
 
     with open(chat_file_path, 'r', encoding='utf-8') as chat_file:
         lines = chat_file.readlines()
+
+    start_lines = get_message_start_lines(lines)
+    start_lines.append(len(lines))  # Add an endpoint for the last message
 
     html_content = '''
 <html>
@@ -121,19 +119,16 @@ function createSummary() {
 
     last_date = None
     last_sender = 'Unknown'
-    current_message = ''
     message_id = 0
 
-    for line in lines:
-        timestamp, sender, message, timestamp_str = process_line(line, last_sender)
+    for i in range(len(start_lines) - 1):
+        message_lines = lines[start_lines[i]:start_lines[i+1]]
+        message_content = "\n".join(message_lines)
         
-        if timestamp and sender:  # New message with timestamp and sender
-            # Append previous accumulated message if any
-            if current_message:
-                message = current_message + '\n' + message
-                current_message = ''
-
-            message = create_media_embed(message, subfolder)
+        timestamp, sender, message, timestamp_str = process_line(message_lines[0], last_sender)
+        
+        if timestamp and sender:
+            message = create_media_embed(message_content, subfolder)
             message_id += 1
 
             if timestamp and (last_date is None or timestamp.date() != last_date):
@@ -155,31 +150,6 @@ function createSummary() {
 </div>
 '''
             last_sender = sender
-        else:  # Continue accumulating current message
-            if current_message:
-                current_message += '\n' + line
-            else:
-                current_message = line
-
-    # Append any remaining accumulated message
-    if current_message:
-        message = create_media_embed(current_message, subfolder)
-        message_id += 1
-        
-        css_class = 'me' if last_sender == 'Me' else 'other'
-        alignment_class = 'right' if last_sender == 'Me' else 'left'
-        html_content += f'''
-<div class="{alignment_class}">
-    <div class="bubble {css_class}">
-        <input type="checkbox" id="msg_{message_id}" name="selected_messages" value="msg_{message_id}">
-        <label for="msg_{message_id}">
-            <div class="sender">{html.escape(last_sender)}</div>
-            {message}
-            <div class="timestamp">{timestamp_str if timestamp else ''}</div>
-        </label>
-    </div>
-</div>
-'''
 
     html_content += '</body></html>'
 
