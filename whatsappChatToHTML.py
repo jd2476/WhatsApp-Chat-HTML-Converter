@@ -5,22 +5,40 @@ from datetime import datetime
 
 def process_line(line, last_sender):
     line = line.strip().replace('\u200e', '')  # Strip whitespace and remove Left-to-Right Mark
-    if '] ' in line:
+    
+    if line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in line and ': ' in line:
         try:
-            timestamp_str, content = line.split('] ', 1)
-            timestamp = datetime.strptime(timestamp_str[1:], '%d/%m/%Y, %H:%M:%S')
-        except ValueError:
-            timestamp, timestamp_str = None, ''
-        if content.startswith('.: '):
-            sender, message = 'Me', content[3:]
-        elif ': ' in content:
+            timestamp_str, content = line.split(' - ', 1)
+            timestamp = datetime.strptime(timestamp_str, '%m/%d/%y, %H:%M')
             sender, message = content.split(': ', 1)
-        else:
-            sender, message = last_sender, content
+            
+            # Check if this is a continuation of the previous message from the same sender
+            if 'last_message' in locals() and last_sender == sender:
+                message = f"{message}\n{last_message}"
+        except ValueError:
+            timestamp, timestamp_str, sender, message = None, '', last_sender, line
     else:
         timestamp, timestamp_str, sender, message = None, '', last_sender, line
 
-    return timestamp, sender, message, timestamp_str
+    last_message = message  # Store the current message to check against the next line
+
+    return timestamp, sender.strip(), message.strip(), timestamp_str
+
+# def process_line(line, last_sender):
+#     line = line.strip().replace('\u200e', '')  # Strip whitespace and remove Left-to-Right Mark
+    
+#     # Check if line starts with a date format, followed by ' - ' and ': '
+#     if line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in line and ': ' in line:
+#         try:
+#             timestamp_str, content = line.split(' - ', 1)
+#             timestamp = datetime.strptime(timestamp_str, '%m/%d/%y, %H:%M')
+#             sender, message = content.split(': ', 1)
+#         except ValueError:
+#             timestamp, timestamp_str, sender, message = None, '', last_sender, line
+#     else:
+#         timestamp, timestamp_str, sender, message = None, '', last_sender, line
+
+#     return timestamp, sender.strip(), message.strip(), timestamp_str
 
 def is_image(file_name):
     return file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp'))
@@ -54,9 +72,9 @@ def get_next_version_number(folder_name):
     return max_version + 1
 
 def main():
-    subfolder = input("Enter the path to the subfolder containing the chat and media files: ")
+    subfolder = input("Enter the path to the subfolder containing the chat and media files: ").strip()
     folder_name = os.path.basename(os.path.normpath(subfolder))
-    chat_file_path = os.path.join(subfolder, '_chat.txt')
+    chat_file_path = os.path.join(subfolder, folder_name + '.txt')
 
     version_number = get_next_version_number(folder_name)
     output_html_path = f'{folder_name}_v{version_number}.html'
@@ -102,20 +120,29 @@ function createSummary() {
 '''
 
     last_date = None
-    last_sender = None
+    last_sender = 'Unknown'
+    current_message = ''
     message_id = 0
+
     for line in lines:
         timestamp, sender, message, timestamp_str = process_line(line, last_sender)
-        message = create_media_embed(message, subfolder)
-        message_id += 1
+        
+        if timestamp and sender:  # New message with timestamp and sender
+            # Append previous accumulated message if any
+            if current_message:
+                message = current_message + '\n' + message
+                current_message = ''
 
-        if timestamp and (last_date is None or timestamp.date() != last_date):
-            html_content += f'<div class="date">{timestamp.strftime("%d %B %Y")}</div>'
-            last_date = timestamp.date()
+            message = create_media_embed(message, subfolder)
+            message_id += 1
 
-        css_class = 'me' if sender == 'Me' else 'other'
-        alignment_class = 'right' if sender == 'Me' else 'left'
-        html_content += f'''
+            if timestamp and (last_date is None or timestamp.date() != last_date):
+                html_content += f'<div class="date">{timestamp.strftime("%d %B %Y")}</div>'
+                last_date = timestamp.date()
+
+            css_class = 'me' if sender == 'Me' else 'other'
+            alignment_class = 'right' if sender == 'Me' else 'left'
+            html_content += f'''
 <div class="{alignment_class}">
     <div class="bubble {css_class}">
         <input type="checkbox" id="msg_{message_id}" name="selected_messages" value="msg_{message_id}">
@@ -127,7 +154,32 @@ function createSummary() {
     </div>
 </div>
 '''
-        last_sender = sender
+            last_sender = sender
+        else:  # Continue accumulating current message
+            if current_message:
+                current_message += '\n' + line
+            else:
+                current_message = line
+
+    # Append any remaining accumulated message
+    if current_message:
+        message = create_media_embed(current_message, subfolder)
+        message_id += 1
+        
+        css_class = 'me' if last_sender == 'Me' else 'other'
+        alignment_class = 'right' if last_sender == 'Me' else 'left'
+        html_content += f'''
+<div class="{alignment_class}">
+    <div class="bubble {css_class}">
+        <input type="checkbox" id="msg_{message_id}" name="selected_messages" value="msg_{message_id}">
+        <label for="msg_{message_id}">
+            <div class="sender">{html.escape(last_sender)}</div>
+            {message}
+            <div class="timestamp">{timestamp_str if timestamp else ''}</div>
+        </label>
+    </div>
+</div>
+'''
 
     html_content += '</body></html>'
 
