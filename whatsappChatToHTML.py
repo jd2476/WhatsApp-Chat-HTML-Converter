@@ -75,6 +75,7 @@ def get_message_start_lines(lines):
 def main():
     subfolder = input("Enter the path to the subfolder containing the chat and media files: ").strip()
     folder_name = os.path.basename(os.path.normpath(subfolder))
+    parent_folder_name = os.path.basename(os.path.dirname(os.path.normpath(subfolder)))
     chat_file_path = os.path.join(subfolder, folder_name + '.txt')
 
     version_number = get_next_version_number(folder_name)
@@ -140,11 +141,16 @@ function createSummary() {
                 html_content += f'<div class="date">{timestamp.strftime("%d %B %Y")}</div>'
                 last_date = timestamp.date()
 
-            css_class = 'me' if sender == 'Me' else 'other'
-            alignment_class = 'right' if sender == 'Me' else 'left'
+            # Determine senderclass based on folder naming conditions
+            # If not a group chat:
+            senderclass = 'other' if sender in folder_name else 'me'
+            # else if group chat: would be more complicated
+            # senderclass = 'other' if sender in folder_name else ('me' if parent_folder_name in sender or sender in parent_folder_name else 'other')
+            
+            alignment_class = 'right' if senderclass == 'me' else 'left'
             html_content += f'''
 <div class="{alignment_class}">
-    <div class="bubble {css_class}">
+    <div class="bubble {senderclass}">
         <!-- <input type="checkbox" id="msg_{message_id}" name="selected_messages" value="msg_{message_id}">
         <label for="msg_{message_id}"> -->
             <div class="sender">{html.escape(sender)}</div>
