@@ -29,6 +29,9 @@ def is_audio(file_name):
 def is_video(file_name):
     return file_name.lower().endswith(('.mp4', '.avi', '.mov', '.wmv'))
 
+def is_pdf(file_name):
+    return file_name.lower().endswith('.pdf')
+
 def create_media_embed(message, subfolder):
     if '(file attached)' in message:
         file_name = message.split(' (file attached)')[0]
@@ -39,6 +42,12 @@ def create_media_embed(message, subfolder):
             return f'<audio controls><source src="{file_path}" type="audio/mpeg">Your browser does not support the audio element.</audio>'
         elif is_video(file_name):
             return f'<video controls><source src="{file_path}" type="video/mp4">Your browser does not support the video tag.</video>'
+        elif is_pdf(file_name):
+            return f'''
+<object data="{file_path}" type="application/pdf" width="450px" height="700px">
+    <p>Unable to display PDF file. <a href="{file_path}">Download</a> instead.</p>
+</object>
+'''
     return html.escape(message)
 
 def get_next_version_number(folder_name):
