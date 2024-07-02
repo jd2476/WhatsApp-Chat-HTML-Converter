@@ -79,7 +79,12 @@ def get_message_start_lines(lines):
 def main():
     subfolder = input("Enter the path to the subfolder containing the chat and media files: ").strip()
     folder_name = os.path.basename(os.path.normpath(subfolder))
-    parent_folder_name = os.path.basename(os.path.dirname(os.path.normpath(subfolder)))
+
+    current_dir = os.getcwd()
+    subfolder_path = os.path.join(current_dir, subfolder)  # Create full path
+    parent_folder_name = os.path.basename(current_dir)
+    # parent_folder_name = os.path.basename(os.path.dirname(os.path.normpath(subfolder)))
+
     chat_file_path = os.path.join(subfolder, folder_name + '.txt')
 
     version_number = get_next_version_number(folder_name)
@@ -141,10 +146,26 @@ function createSummary() {
 
             # Determine senderclass based on folder naming conditions
             # If not a group chat:
-            senderclass = 'other' if sender in folder_name else 'me'
-            # else if group chat: would be more complicated
-            # senderclass = 'other' if sender in folder_name else ('me' if parent_folder_name in sender or sender in parent_folder_name else 'other')
+            #senderclass = 'other' if sender in folder_name else 'me'
 
+            # else if group chat: would be more complicated
+            if ' ' in parent_folder_name:
+                parent_folder_fn = parent_folder_name.split()[0]
+            else:
+                parent_folder_fn = parent_folder_name
+
+            if ' ' in sender:
+                sender_fn = sender.split()[0]
+            else:
+                sender_fn = sender
+
+            # senderclass = 'other' if sender in folder_name else ('me' if sender_fn in parent_folder_fn else 'other') else 'me'
+            senderclass = 'other' if sender in folder_name else 'me' if sender_fn in parent_folder_fn else 'other'
+
+            # print("new msg:")
+            # print("sender_fn: " + sender_fn)
+            # print("parent_folder_name: " + parent_folder_name)
+            # print("parent_folder_fn: " + parent_folder_fn)
 
             message = create_media_embed(message, subfolder, senderclass)
             message_id += 1
