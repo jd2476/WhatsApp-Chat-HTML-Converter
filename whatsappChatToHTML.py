@@ -90,7 +90,7 @@ def main():
 <html>
 <head>
 <style>
-body {font-family: Arial, sans-serif; margin: 0; padding: 10px;}
+body {font-family: Arial, sans-serif; margin: 0; padding: 10px; max-width: 1500px; margin: auto;}
 .date {text-align: center; color: #555; margin: 20px 0;}
 .bubble {border-radius: 20px; padding: 10px 20px; margin: 2px 10px; display: inline-block; max-width: 70%;}
 .me {background-color: #DCF8C6; align-self: flex-end; text-align: right;}
