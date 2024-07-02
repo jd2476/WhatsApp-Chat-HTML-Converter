@@ -150,14 +150,14 @@ function createSummary() {
 
             # else if group chat: would be more complicated
             if ' ' in parent_folder_name:
-                parent_folder_fn = parent_folder_name.split()[0]
+                parent_folder_fn = parent_folder_name.split()[0].lower()
             else:
-                parent_folder_fn = parent_folder_name
+                parent_folder_fn = parent_folder_name.lower()
 
             if ' ' in sender:
-                sender_fn = sender.split()[0]
+                sender_fn = sender.split()[0].lower()
             else:
-                sender_fn = sender
+                sender_fn = sender.lower()
 
             # senderclass = 'other' if sender in folder_name else ('me' if sender_fn in parent_folder_fn else 'other') else 'me'
             senderclass = 'other' if sender in folder_name else 'me' if sender_fn in parent_folder_fn else 'other'
