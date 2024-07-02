@@ -30,8 +30,8 @@ def is_video(file_name):
     return file_name.lower().endswith(('.mp4', '.avi', '.mov', '.wmv'))
 
 def create_media_embed(message, subfolder):
-    if '<attached:' in message:
-        file_name = message.split('<attached: ')[1].split('>')[0]
+    if '(file attached)' in message:
+        file_name = message.split(' (file attached)')[0]
         file_path = html.escape(os.path.join(subfolder, file_name))
         if is_image(file_name):
             return f'<img src="{file_path}" alt="{file_name}" style="max-width: 100%;">'
@@ -109,7 +109,7 @@ function createSummary() {
 </script>
 </head>
 <body>
-<button onclick="createSummary()">Create Summary</button><br/><br/>
+<!-- <button onclick="createSummary()">Create Summary</button><br/><br/> -->
 '''
 
     last_date = None
@@ -134,12 +134,12 @@ function createSummary() {
             html_content += f'''
 <div class="{alignment_class}">
     <div class="bubble {css_class}">
-        <input type="checkbox" id="msg_{message_id}" name="selected_messages" value="msg_{message_id}">
-        <label for="msg_{message_id}">
+        <!-- <input type="checkbox" id="msg_{message_id}" name="selected_messages" value="msg_{message_id}">
+        <label for="msg_{message_id}"> -->
             <div class="sender">{html.escape(sender)}</div>
             {message}
             <div class="timestamp">{timestamp_str if timestamp else ''}</div>
-        </label>
+        <!-- </label> -->
     </div>
 </div>
 '''
