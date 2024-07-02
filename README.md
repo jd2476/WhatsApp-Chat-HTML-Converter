@@ -3,7 +3,7 @@ This Python script is designed to transform a WhatsApp chat log, including assoc
 
 ## Features
 Chat Conversion: Converts Android or iOS exported WhatsApp chat log file (_chat.txt) into a formatted HTML document.<br/>
-Media Embedding: Embeds images, audio, and video files directly into the chat flow, allowing for inline viewing and playback. Or let you download a non-viewable attachement such doc,pdf etc.<br/>
+Media Embedding: Embeds images, audio, and video files directly into the chat flow, allowing for inline viewing and playback. Or let you download a non-viewable attachement such as doc,pdf etc.<br/>
 Versioned Output: The script generates HTML files with incremental version numbers to keep track of multiple conversions.<br/>
 
 ## Usage
