@@ -50,7 +50,7 @@ def create_media_embed(message, subfolder):
 '''
         else:
             return f'<a href="{file_path}">{html.escape(file_name)}</a> (file attached)'
-    return html.escape(message)
+    return html.escape(message).replace('\n', '<br>')
 
 def get_next_version_number(folder_name):
     existing_files = glob.glob(f'{folder_name}_v*.html')
