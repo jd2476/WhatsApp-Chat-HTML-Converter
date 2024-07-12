@@ -10,7 +10,9 @@ def detect_date_format(timestamps):
         '%Y/%m/%d, %H:%M:%S',
         '%d/%m/%Y, %H:%M',
         '%m/%d/%Y, %H:%M',
-        '%Y/%m/%d, %H:%M'
+        '%Y/%m/%d, %H:%M',
+        '%d/%m/%y, %H:%M',  # for Android
+        '%m/%d/%y, %H:%M'   # for Android
     ]
     for fmt in formats:
         valid_count = 0
@@ -31,16 +33,24 @@ def extract_timestamps(lines):
         if line.startswith("[") and "]" in line:
             timestamp_str = line.split('] ', 1)[0].replace('[','')
             timestamps.append(timestamp_str)
+        elif ' - ' in line and ': ' in line:  # for Android
+            timestamp_str = line.split(' - ', 1)[0]
+            timestamps.append(timestamp_str)
     return timestamps
 
 def process_message(message_lines, last_sender, date_format):
     first_line = message_lines[0].strip().replace('\u200e', '').replace('\u202f','')
     rest_of_message = "\n".join(message_lines[1:]).strip()
 
-    # if first_line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in first_line and ': ' in first_line:
     if first_line.startswith("[") and "]" in first_line:
         timestamp_str, content = first_line.split('] ', 1)
         timestamp_str = timestamp_str.replace('[','')
+    elif first_line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in first_line and ': ' in first_line:  # for Android
+        timestamp_str, content = first_line.split(' - ', 1)
+    else:
+        timestamp_str, content = None, first_line
+
+    if timestamp_str:
         try:
             timestamp = datetime.strptime(timestamp_str, date_format)
             if content.startswith('.:'):
@@ -73,11 +83,11 @@ def create_media_embed(message, subfolder, senderclass):
         # Determine call icon based on senderclass
         call_icon = '📞 Incoming call' if senderclass == 'other' else '📞 Outgoing call'
         return f'<div class="call-icon">{call_icon}</div>'
-    # if '(file attached)' in message:
-    #     file_name = message.split(' (file attached)')[0]
-    #     file_path = html.escape(os.path.join(subfolder, file_name))
-    if '<attached:' in message:
-        file_name = message.split('<attached: ')[1].split('>')[0]
+    if '(file attached)' in message or '<attached:' in message:  # for both Android and iOS
+        if '(file attached)' in message:  # for Android
+            file_name = message.split(' (file attached)')[0]
+        else:  # for iOS
+            file_name = message.split('<attached: ')[1].split('>')[0]
         file_path = html.escape(os.path.join(subfolder, file_name))
         if is_image(file_name):
             return f'<img src="{file_path}" alt="{file_name}" style="max-width: 100%;">'
@@ -109,8 +119,9 @@ def get_message_start_lines(lines):
     start_lines = []
     for i, line in enumerate(lines):
         line = line.strip().replace('\u200e', '')
-        # if line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in line and ': ' in line:
         if line.startswith("[") and "]" in line:
+            start_lines.append(i)
+        elif line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in line and ': ' in line:  # Android-specific
             start_lines.append(i)
     return start_lines
 
@@ -128,13 +139,18 @@ def main():
     current_dir = os.getcwd()
     subfolder_path = os.path.join(current_dir, subfolder)  # Create full path
     parent_folder_name = os.path.basename(current_dir)
-    # parent_folder_name = os.path.basename(os.path.dirname(os.path.normpath(subfolder)))
 
-    # chat_file_path = os.path.join(subfolder, folder_name + '.txt')
-    chat_file_path = os.path.join(subfolder, '_chat.txt')
+    # Expecting the chat file to be named '_chat.txt' for iOS and folder_name + '.txt' for Android
+    chat_file_path_ios = os.path.join(subfolder, '_chat.txt')
+    chat_file_path_android = os.path.join(subfolder, folder_name + '.txt')
 
-    if not os.path.isfile(chat_file_path):
-        print("Chat file not found.")
+    # Check for the existence of the chat file for both iOS and Android
+    if os.path.isfile(chat_file_path_ios):
+        chat_file_path = chat_file_path_ios
+    elif os.path.isfile(chat_file_path_android):
+        chat_file_path = chat_file_path_android
+    else:
+        print(f"Chat file not found in {subfolder}.")
         return
 
     version_number = get_next_version_number(folder_name)
