@@ -18,12 +18,12 @@ Versioned Output: The script generates HTML files with incremental version numbe
 3. View and Interact with HTML:
   - The script will generate an HTML file named after the folder containing the chat log, appended with a version number (e.g., ChatFolder_v0.html).
   - Open this HTML file in a web browser to view the formatted chat.
-#  - Use checkboxes next to each message to select messages. (planned)
-#  - Click the “Create Summary” button to open a new HTML document with only the selected messages. (planned)
+  #- Use checkboxes next to each message to select messages. (planned)
+  #- Click the “Create Summary” button to open a new HTML document with only the selected messages. (planned)
 
-# 4. Summary HTML: (planned)
-#  - The summary HTML is displayed in a new browser window or tab.
-#  - This document can be saved manually from the browser for record-keeping or sharing.
+#4. Summary HTML: (planned)
+  #- The summary HTML is displayed in a new browser window or tab.
+  #- This document can be saved manually from the browser for record-keeping or sharing.
 
 ## Requirements
   - Python environment (Python 3.x recommended).
