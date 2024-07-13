@@ -9,10 +9,11 @@ Versioned Output: The script generates HTML files with incremental version numbe
 ## Usage
 
 1. Prepare Chat and Media Files:
-  - Export your WhatsApp chat along with media files. This will typically generate a folder containing a _chat.txt file and various media files.
+  - Export your WhatsApp chat along with media files. This will typically generate a folder containing a _chat.txt file (for iOS) and various media files.
 
 2. Run the Script:
-  - Place the script in a directory separate from your chat and media files.
+  - Place the script in the same directory as the folder which contains the chat and media files.
+  - Note: You can have multiple chat folders, the script will prompt you for which folder you want to export.
   - Run the script. When prompted, enter the path to the folder containing your exported WhatsApp chat and media files.
 
 3. View and Interact with HTML:
