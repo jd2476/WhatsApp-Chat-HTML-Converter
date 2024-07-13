@@ -1,10 +1,11 @@
 # WhatsApp-Chat-HTML-Converter
-This Python script is designed to transform a WhatsApp chat log, including associated media files, into an interactive HTML document. It provides an easy-to-navigate format for viewing chat histories, complete with embedded media like images, audio, and videos.
+This Python script is designed to transform a WhatsApp chat log, including associated media files, into an interactive HTML document. It provides an easy-to-navigate format for viewing chat histories, complete with embedded media like images, audio, and videos.  It has been updated to support both iOS and Android exports.
 
 ## Features
-Chat Conversion: Converts Android or iOS exported WhatsApp chat log file (_chat.txt) into a formatted HTML document.<br/>
-Media Embedding: Embeds images, audio, and video files directly into the chat flow, allowing for inline viewing and playback. Or let you download a non-viewable attachement such as doc,pdf etc.<br/>
-Versioned Output: The script generates HTML files with incremental version numbers to keep track of multiple conversions.<br/>
+
+Chat Conversion: Converts a WhatsApp chat log file (`_chat.txt` for iOS and `folder_name + '.txt'` for Android) into a formatted HTML document.
+Media Embedding: Embeds images, audio, and video files directly into the chat flow, allowing for inline viewing and playback.
+Versioned Output: The script generates HTML files with incremental version numbers to keep track of multiple conversions.
 
 ## Usage
 
@@ -27,6 +28,12 @@ Versioned Output: The script generates HTML files with incremental version numbe
 3. View and Interact with HTML:
   - The script will generate an HTML file named after the folder containing the chat log, appended with a version number (e.g., ChatFolder_v0.html).
   - Open this HTML file in a web browser to view the formatted chat.
+#  - Use checkboxes next to each message to select messages. (planned)
+#  - Click the “Create Summary” button to open a new HTML document with only the selected messages. (planned)
+
+# 4. Summary HTML: (planned)
+#  - The summary HTML is displayed in a new browser window or tab.
+#  - This document can be saved manually from the browser for record-keeping or sharing.
 
 ## Requirements
   - Python environment (Python 3.x recommended).

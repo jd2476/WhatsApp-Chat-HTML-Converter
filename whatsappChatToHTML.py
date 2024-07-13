@@ -3,15 +3,61 @@ import html
 import glob
 from datetime import datetime
 
-def process_message(message_lines, last_sender):
-    first_line = message_lines[0].strip().replace('\u200e', '')
+def detect_date_format(timestamps):
+    formats = [
+        '%d/%m/%Y, %H:%M:%S',
+        '%m/%d/%Y, %H:%M:%S',
+        '%Y/%m/%d, %H:%M:%S',
+        '%d/%m/%Y, %H:%M',
+        '%m/%d/%Y, %H:%M',
+        '%Y/%m/%d, %H:%M',
+        '%d/%m/%y, %H:%M',  # for Android
+        '%m/%d/%y, %H:%M'   # for Android
+    ]
+    for fmt in formats:
+        valid_count = 0
+        for timestamp_str in timestamps:
+            try:
+                datetime.strptime(timestamp_str, fmt)
+                valid_count += 1
+            except ValueError:
+                pass
+        if valid_count == len(timestamps):
+            return fmt
+    return None
+
+def extract_timestamps(lines):
+    timestamps = []
+    for line in lines:
+        line = line.strip().replace('\u200e', '').replace('\u202f','')
+        if line.startswith("[") and "]" in line:
+            timestamp_str = line.split('] ', 1)[0].replace('[','')
+            timestamps.append(timestamp_str)
+        elif ' - ' in line and ': ' in line:  # for Android
+            timestamp_str = line.split(' - ', 1)[0]
+            timestamps.append(timestamp_str)
+    return timestamps
+
+def process_message(message_lines, last_sender, date_format):
+    first_line = message_lines[0].strip().replace('\u200e', '').replace('\u202f','')
     rest_of_message = "\n".join(message_lines[1:]).strip()
 
-    if first_line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in first_line and ': ' in first_line:
+    if first_line.startswith("[") and "]" in first_line:
+        timestamp_str, content = first_line.split('] ', 1)
+        timestamp_str = timestamp_str.replace('[','')
+    elif first_line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in first_line and ': ' in first_line:  # for Android
+        timestamp_str, content = first_line.split(' - ', 1)
+    else:
+        timestamp_str, content = None, first_line
+
+    if timestamp_str:
         try:
-            timestamp_str, content = first_line.split(' - ', 1)
-            timestamp = datetime.strptime(timestamp_str, '%m/%d/%y, %H:%M')
-            sender, message = content.split(': ', 1)
+            timestamp = datetime.strptime(timestamp_str, date_format)
+            if content.startswith('.:'):
+                sender = 'Me'
+                message = content[3:]
+            else:
+                sender, message = content.split(': ', 1)
             message = f"{message}\n{rest_of_message}" if rest_of_message else message
         except ValueError:
             timestamp, timestamp_str, sender, message = None, '', last_sender, first_line + "\n" + rest_of_message if rest_of_message else first_line
@@ -37,8 +83,11 @@ def create_media_embed(message, subfolder, senderclass):
         # Determine call icon based on senderclass
         call_icon = '📞 Incoming call' if senderclass == 'other' else '📞 Outgoing call'
         return f'<div class="call-icon">{call_icon}</div>'
-    if '(file attached)' in message:
-        file_name = message.split(' (file attached)')[0]
+    if '(file attached)' in message or '<attached:' in message:  # for both Android and iOS
+        if '(file attached)' in message:  # for Android
+            file_name = message.split(' (file attached)')[0]
+        else:  # for iOS
+            file_name = message.split('<attached: ')[1].split('>')[0]
         file_path = html.escape(os.path.join(subfolder, file_name))
         if is_image(file_name):
             return f'<img src="{file_path}" alt="{file_name}" style="max-width: 100%;">'
@@ -68,24 +117,41 @@ def get_next_version_number(folder_name):
 
 def get_message_start_lines(lines):
     start_lines = []
-    
     for i, line in enumerate(lines):
         line = line.strip().replace('\u200e', '')
-        if line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in line and ': ' in line:
+        if line.startswith("[") and "]" in line:
             start_lines.append(i)
-            
+        elif line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in line and ': ' in line:  # Android-specific
+            start_lines.append(i)
     return start_lines
 
 def main():
     subfolder = input("Enter the path to the subfolder containing the chat and media files: ").strip()
+    
+    # Sanitize user input for path traversal
+    subfolder = os.path.abspath(subfolder)
+    if not os.path.isdir(subfolder):
+        print("Invalid folder path.")
+        return
+
     folder_name = os.path.basename(os.path.normpath(subfolder))
 
     current_dir = os.getcwd()
     subfolder_path = os.path.join(current_dir, subfolder)  # Create full path
     parent_folder_name = os.path.basename(current_dir)
-    # parent_folder_name = os.path.basename(os.path.dirname(os.path.normpath(subfolder)))
 
-    chat_file_path = os.path.join(subfolder, folder_name + '.txt')
+    # Expecting the chat file to be named '_chat.txt' for iOS and folder_name + '.txt' for Android
+    chat_file_path_ios = os.path.join(subfolder, '_chat.txt')
+    chat_file_path_android = os.path.join(subfolder, folder_name + '.txt')
+
+    # Check for the existence of the chat file for both iOS and Android
+    if os.path.isfile(chat_file_path_ios):
+        chat_file_path = chat_file_path_ios
+    elif os.path.isfile(chat_file_path_android):
+        chat_file_path = chat_file_path_android
+    else:
+        print(f"Chat file not found in {subfolder}.")
+        return
 
     version_number = get_next_version_number(folder_name)
     output_html_path = f'{folder_name}_v{version_number}.html'
@@ -93,12 +159,20 @@ def main():
     with open(chat_file_path, 'r', encoding='utf-8') as chat_file:
         lines = chat_file.readlines()
 
+    timestamps = extract_timestamps(lines)
+    date_format = detect_date_format(timestamps)
+
+    if not date_format:
+        print("Could not detect timestamp format.")
+        return
+
     start_lines = get_message_start_lines(lines)
     start_lines.append(len(lines))  # Add an endpoint for the last message
 
     html_content = '''
 <html>
 <head>
+<meta charset="UTF-8">
 <style>
 body {font-family: Arial, sans-serif; margin: 0; padding: 10px; max-width: 1500px; margin: auto;}
 .date {text-align: center; color: #555; margin: 20px 0;}
@@ -110,11 +184,13 @@ body {font-family: Arial, sans-serif; margin: 0; padding: 10px; max-width: 1500p
 .me .timestamp {text-align: right;}
 .left {text-align: left;}
 .right {text-align: right;}
+.right .bubble {margin-left: auto; margin-right: 0;}
+.left .bubble {margin-right: auto; margin-left: 0;}
 </style>
 <script>
 function createSummary() {
     var selectedMessages = document.querySelectorAll('input[name="selected_messages"]:checked');
-    var summaryContent = '<html><head><style>/* same CSS styles */</style></head><body>';
+    var summaryContent = '<html><head><meta charset="UTF-8"><style>/* same CSS styles */</style></head><body>';
 
     selectedMessages.forEach(function(msg) {
         var messageDiv = msg.closest('.bubble').outerHTML;
@@ -140,32 +216,10 @@ function createSummary() {
     for i in range(len(start_lines) - 1):
         message_lines = lines[start_lines[i]:start_lines[i+1]]
         
-        timestamp, sender, message, timestamp_str = process_message(message_lines, last_sender)
+        timestamp, sender, message, timestamp_str = process_message(message_lines, last_sender, date_format)
         
         if timestamp and sender:
-
-            # Determine senderclass based on folder naming conditions
-            # If not a group chat:
-            #senderclass = 'other' if sender in folder_name else 'me'
-
-            # else if group chat: would be more complicated
-            if ' ' in parent_folder_name:
-                parent_folder_fn = parent_folder_name.split()[0].lower()
-            else:
-                parent_folder_fn = parent_folder_name.lower()
-
-            if ' ' in sender:
-                sender_fn = sender.split()[0].lower()
-            else:
-                sender_fn = sender.lower()
-
-            # senderclass = 'other' if sender in folder_name else ('me' if sender_fn in parent_folder_fn else 'other') else 'me'
-            senderclass = 'other' if sender in folder_name else 'me' if sender_fn in parent_folder_fn else 'other'
-
-            # print("new msg:")
-            # print("sender_fn: " + sender_fn)
-            # print("parent_folder_name: " + parent_folder_name)
-            # print("parent_folder_fn: " + parent_folder_fn)
+            senderclass = 'me' if sender == 'Me' else 'other'
 
             message = create_media_embed(message, subfolder, senderclass)
             message_id += 1
@@ -174,8 +228,6 @@ function createSummary() {
                 html_content += f'<div class="date">{timestamp.strftime("%d %B %Y")}</div>'
                 last_date = timestamp.date()
 
-            
-            
             alignment_class = 'right' if senderclass == 'me' else 'left'
             html_content += f'''
 <div class="{alignment_class}">
@@ -190,6 +242,8 @@ function createSummary() {
 </div>
 '''
             last_sender = sender
+        else:
+            print("couldn't detect timestamp")
 
     html_content += '</body></html>'
 
