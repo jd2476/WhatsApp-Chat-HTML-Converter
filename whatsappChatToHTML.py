@@ -5,14 +5,21 @@ from datetime import datetime
 
 def detect_date_format(timestamps):
     formats = [
-        '%d/%m/%Y, %H:%M:%S',
-        '%m/%d/%Y, %H:%M:%S',
-        '%Y/%m/%d, %H:%M:%S',
-        '%d/%m/%Y, %H:%M',
-        '%m/%d/%Y, %H:%M',
-        '%Y/%m/%d, %H:%M',
+        '%d/%m/%Y, %H:%M:%S',  # Common format
+        '%m/%d/%Y, %H:%M:%S',  # Common format
+        '%Y/%m/%d, %H:%M:%S',  # Common format
+        '%d/%m/%Y, %H:%M',  # Common format
+        '%m/%d/%Y, %H:%M',  # Common format
+        '%Y/%m/%d, %H:%M',  # Common format
         '%d/%m/%y, %H:%M',  # for Android
-        '%m/%d/%y, %H:%M'   # for Android
+        '%m/%d/%y, %H:%M',  # for Android
+        '%Y-%m-%d, %H:%M:%S',  # Provided format
+        '%Y-%m-%dT%H:%M:%S',  # ISO 8601
+        '%Y-%m-%dT%H:%M:%S.%f',  # ISO 8601 with microseconds
+        '%d-%b-%Y, %H:%M:%S',  # Example: '07-Jan-2024, 08:47:05'
+        '%d-%b-%y, %H:%M:%S',  # Example: '07-Jan-24, 08:47:05'
+        '%d %b %Y, %H:%M:%S',  # Example: '07 Jan 2024, 08:47:05'
+        '%d %b %y, %H:%M:%S'  # Example: '07 Jan 24, 08:47:05'
     ]
     for fmt in formats:
         valid_count = 0
@@ -29,22 +36,37 @@ def detect_date_format(timestamps):
 def extract_timestamps(lines):
     timestamps = []
     for line in lines:
-        line = line.strip().replace('\u200e', '').replace('\u202f','')
+        line = line.strip().replace('\u200e', '').replace('\u202f', '')
         if line.startswith("[") and "]" in line:
-            timestamp_str = line.split('] ', 1)[0].replace('[','')
+            timestamp_str = line.split('] ', 1)[0].replace('[', '')
             timestamps.append(timestamp_str)
         elif ' - ' in line and ': ' in line:  # for Android
             timestamp_str = line.split(' - ', 1)[0]
             timestamps.append(timestamp_str)
     return timestamps
 
-def process_message(message_lines, last_sender, date_format):
-    first_line = message_lines[0].strip().replace('\u200e', '').replace('\u202f','')
+def extract_names(lines):
+    names = set()
+    for line in lines:
+        line = line.strip().replace('\u200e', '').replace('\u202f', '')
+        if line.startswith("[") and "]" in line:
+            try:
+                content = line.split('] ', 1)[1]
+                if ': ' in content:
+                    sender = content.split(': ', 1)[0]
+                    if not sender.startswith('.'):
+                        names.add(sender)
+            except IndexError:
+                continue
+    return sorted(names)
+
+def process_message(message_lines, last_sender, date_format, my_name):
+    first_line = message_lines[0].strip().replace('\u200e', '').replace('\u202f', '')
     rest_of_message = "\n".join(message_lines[1:]).strip()
 
     if first_line.startswith("[") and "]" in first_line:
         timestamp_str, content = first_line.split('] ', 1)
-        timestamp_str = timestamp_str.replace('[','')
+        timestamp_str = timestamp_str.replace('[', '')
     elif first_line.startswith(tuple(f'{m}/' for m in range(1, 13))) and ' - ' in first_line and ': ' in first_line:  # for Android
         timestamp_str, content = first_line.split(' - ', 1)
     else:
@@ -54,7 +76,7 @@ def process_message(message_lines, last_sender, date_format):
         try:
             timestamp = datetime.strptime(timestamp_str, date_format)
             if content.startswith('.:'):
-                sender = 'Me'
+                sender = my_name
                 message = content[3:]
             else:
                 sender, message = content.split(': ', 1)
@@ -126,8 +148,41 @@ def get_message_start_lines(lines):
     return start_lines
 
 def main():
-    subfolder = input("Enter the path to the subfolder containing the chat and media files: ").strip()
-    
+    # List subfolders in the current directory
+    subfolders = [f.name for f in os.scandir(os.getcwd()) if f.is_dir()]
+    valid_subfolders = []
+
+    for folder in subfolders:
+        folder_path = os.path.join(os.getcwd(), folder)
+        chat_file_path_ios = os.path.join(folder_path, '_chat.txt')
+        chat_file_path_android = os.path.join(folder_path, folder + '.txt')
+
+        if os.path.isfile(chat_file_path_ios) or os.path.isfile(chat_file_path_android):
+            valid_subfolders.append(folder)
+
+    if not valid_subfolders:
+        print("No valid subfolders found.")
+        return
+
+    attempts = 0
+    while attempts < 2:
+        print("Select a subfolder containing the chat and media files:")
+        for idx, folder in enumerate(valid_subfolders):
+            print(f"{idx + 1}. {folder}")
+
+        try:
+            folder_idx = int(input("Enter the number of the folder (or press Ctrl+C to interrupt): ")) - 1
+            if folder_idx < 0 or folder_idx >= len(valid_subfolders):
+                raise ValueError("Invalid selection.")
+            subfolder = valid_subfolders[folder_idx]
+            break
+        except ValueError:
+            attempts += 1
+            print(f"Invalid input. You have {2 - attempts} attempts left.")
+    else:
+        print("Too many invalid attempts. Exiting.")
+        return
+
     # Sanitize user input for path traversal
     subfolder = os.path.abspath(subfolder)
     if not os.path.isdir(subfolder):
@@ -166,8 +221,47 @@ def main():
         print("Could not detect timestamp format.")
         return
 
+    names = extract_names(lines)
+
+    attempts = 0
+    while attempts < 2:
+        print("Select your name from the list:")
+        for idx, name in enumerate(names):
+            print(f"{idx + 1}. {name}")
+
+        try:
+            name_idx = int(input("Enter the number corresponding to your name (or press Ctrl+C to interrupt): ")) - 1
+            if name_idx < 0 or name_idx >= len(names):
+                raise ValueError("Invalid selection.")
+            my_name = names[name_idx]
+            break
+        except ValueError:
+            attempts += 1
+            print(f"Invalid input. You have {2 - attempts} attempts left.")
+    else:
+        print("Too many invalid attempts. Exiting.")
+        return
+
     start_lines = get_message_start_lines(lines)
     start_lines.append(len(lines))  # Add an endpoint for the last message
+
+    messages = []
+
+    last_sender = 'Unknown'  # Initialize last_sender before the loop
+
+    for i in range(len(start_lines) - 1):
+        message_lines = lines[start_lines[i]:start_lines[i+1]]
+        
+        timestamp, sender, message, timestamp_str = process_message(message_lines, last_sender, date_format, my_name)
+        
+        if timestamp and sender:
+            messages.append((timestamp, sender, message, timestamp_str))
+            last_sender = sender  # Update last_sender within the loop
+        else:
+            print("couldn't detect timestamp")
+
+    # Sort messages by timestamp
+    messages.sort(key=lambda x: x[0])
 
     html_content = '''
 <html>
@@ -210,26 +304,20 @@ function createSummary() {
 '''
 
     last_date = None
-    last_sender = 'Unknown'
     message_id = 0
 
-    for i in range(len(start_lines) - 1):
-        message_lines = lines[start_lines[i]:start_lines[i+1]]
-        
-        timestamp, sender, message, timestamp_str = process_message(message_lines, last_sender, date_format)
-        
-        if timestamp and sender:
-            senderclass = 'me' if sender == 'Me' else 'other'
+    for timestamp, sender, message, timestamp_str in messages:
+        senderclass = 'me' if sender == my_name else 'other'
 
-            message = create_media_embed(message, subfolder, senderclass)
-            message_id += 1
+        message = create_media_embed(message, subfolder, senderclass)
+        message_id += 1
 
-            if timestamp and (last_date is None or timestamp.date() != last_date):
-                html_content += f'<div class="date">{timestamp.strftime("%d %B %Y")}</div>'
-                last_date = timestamp.date()
+        if timestamp and (last_date is None or timestamp.date() != last_date):
+            html_content += f'<div class="date">{timestamp.strftime("%d %B %Y")}</div>'
+            last_date = timestamp.date()
 
-            alignment_class = 'right' if senderclass == 'me' else 'left'
-            html_content += f'''
+        alignment_class = 'right' if senderclass == 'me' else 'left'
+        html_content += f'''
 <div class="{alignment_class}">
     <div class="bubble {senderclass}">
         <!-- <input type="checkbox" id="msg_{message_id}" name="selected_messages" value="msg_{message_id}">
@@ -241,9 +329,6 @@ function createSummary() {
     </div>
 </div>
 '''
-            last_sender = sender
-        else:
-            print("couldn't detect timestamp")
 
     html_content += '</body></html>'
 
